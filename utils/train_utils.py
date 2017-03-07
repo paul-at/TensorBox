@@ -7,9 +7,9 @@ import itertools
 from scipy.misc import imread, imresize
 import tensorflow as tf
 
-from data_utils import (annotation_jitter, annotation_to_h5)
+from utils.data_utils import (annotation_jitter, annotation_to_h5)
 from utils.annolist import AnnotationLib as al
-from rect import Rect
+from utils.rect import Rect
 from utils import tf_concat
 
 def rescale_boxes(current_shape, anno, target_height, target_width):
@@ -124,7 +124,7 @@ def add_rectangles(H, orig_image, confidences, boxes, use_stitching=False, rnn_l
 
     all_rects_r = [r for row in all_rects for cell in row for r in cell]
     if use_stitching:
-        from stitch_wrapper import stitch_rects
+        from utils.stitch_wrapper import stitch_rects
         acc_rects = stitch_rects(all_rects, tau)
     else:
         acc_rects = all_rects_r
@@ -139,8 +139,8 @@ def add_rectangles(H, orig_image, confidences, boxes, use_stitching=False, rnn_l
         for rect in rect_set:
             if rect.confidence > min_conf:
                 cv2.rectangle(image,
-                    (rect.cx-int(rect.width/2), rect.cy-int(rect.height/2)),
-                    (rect.cx+int(rect.width/2), rect.cy+int(rect.height/2)),
+                    (int(rect.cx)-int(rect.width/2), int(rect.cy)-int(rect.height/2)),
+                    (int(rect.cx)+int(rect.width/2), int(rect.cy)+int(rect.height/2)),
                     color,
                     2)
 
