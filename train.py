@@ -36,14 +36,14 @@ def build_lstm_inner(H, lstm_input):
     '''
     build lstm decoder
     '''
-    lstm_cell = rnn_cell.BasicLSTMCell(H['lstm_size'], forget_bias=0.0, state_is_tuple=False)
+    lstm_cell = rnn_cell.BasicLSTMCell(H['lstm_size'], forget_bias=0.0, state_is_tuple=True)
     if H['num_lstm_layers'] > 1:
-        lstm = rnn_cell.MultiRNNCell([lstm_cell] * H['num_lstm_layers'], state_is_tuple=False)
+        lstm = rnn_cell.MultiRNNCell([lstm_cell] * H['num_lstm_layers'], state_is_tuple=True)
     else:
         lstm = lstm_cell
 
     batch_size = H['batch_size'] * H['grid_height'] * H['grid_width']
-    state = tf.zeros([batch_size, lstm.state_size])
+    state = lstm.zero_state(batch_size, tf.float32)
 
     outputs = []
     with tf.variable_scope('RNN', initializer=tf.random_uniform_initializer(-0.1, 0.1)):
@@ -466,7 +466,7 @@ def train(H, test_images):
             t.start()
 
         tf.set_random_seed(H['solver']['rnd_seed'])
-        sess.run(tf.initialize_all_variables())
+        sess.run(tf.global_variables_initializer())
         writer.add_graph(sess.graph)
         weights_str = H['solver']['weights']
         if len(weights_str) > 0:
@@ -475,10 +475,10 @@ def train(H, test_images):
         else:
             init_fn = slim.assign_from_checkpoint_fn(
                   '%s/data/%s' % (os.path.dirname(os.path.realpath(__file__)), H['slim_ckpt']),
-                  [x for x in tf.all_variables() if x.name.startswith(H['slim_basename']) and H['solver']['opt'] not in x.name])
+                  [x for x in tf.global_variables() if x.name.startswith(H['slim_basename']) and H['solver']['opt'] not in x.name])
             #init_fn = slim.assign_from_checkpoint_fn(
                   #'%s/data/inception_v1.ckpt' % os.path.dirname(os.path.realpath(__file__)),
-                  #[x for x in tf.all_variables() if x.name.startswith('InceptionV1') and not H['solver']['opt'] in x.name])
+                  #[x for x in tf.global_variables() if x.name.startswith('InceptionV1') and not H['solver']['opt'] in x.name])
             init_fn(sess)
 
         # train model for N iterations
@@ -528,12 +528,15 @@ def main():
     parser.add_argument('--weights', default=None, type=str)
     parser.add_argument('--gpu', default=None, type=int)
     parser.add_argument('--hypes', required=True, type=str)
+    parser.add_argument('--max_iter', required=False, type=int, default=None)
     parser.add_argument('--logdir', default='output', type=str)
     args = parser.parse_args()
     with open(args.hypes, 'r') as f:
         H = json.load(f)
     if args.gpu is not None:
         H['solver']['gpu'] = args.gpu
+    if args.max_iter is not None:
+        H['solver']['max_iter'] = args.max_iter
     if len(H.get('exp_name', '')) == 0:
         H['exp_name'] = args.hypes.split('/')[-1].replace('.json', '')
     H['save_dir'] = args.logdir + '/%s_%s' % (H['exp_name'],
